@@ -1,0 +1,10 @@
+{
+  "name": "pokemon-game",
+  "version": "1.0.0",
+  "bin": {
+    "pokemon-game": "./game_poke.js"
+  },
+  "dependencies": {
+    "prompt-sync": "^4.2.0"
+  }
+}
