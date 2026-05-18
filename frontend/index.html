@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Book Reading Tracker</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 p-10">
+
+  <div class="max-w-5xl mx-auto">
+
+    <h1 class="text-5xl font-bold text-center mb-10">
+      Book Reading Tracker
+    </h1>
+
+    <!-- FORM -->
+    <form id="bookForm" class="bg-white p-6 rounded shadow mb-10">
+
+      <div class="grid grid-cols-2 gap-4">
+
+        <input
+          type="text"
+          id="title"
+          placeholder="Titre"
+          class="border p-2 rounded"
+          required
+        />
+
+        <input
+          type="text"
+          id="author"
+          placeholder="Auteur"
+          class="border p-2 rounded"
+          required
+        />
+
+        <input
+          type="number"
+          id="pages"
+          placeholder="Nombre de pages"
+          class="border p-2 rounded"
+          required
+        />
+
+        <input
+          type="number"
+          id="pagesRead"
+          placeholder="Pages lues"
+          class="border p-2 rounded"
+          required
+        />
+
+        <input
+          type="number"
+          id="price"
+          placeholder="Prix"
+          class="border p-2 rounded"
+        />
+
+        <input
+          type="text"
+          id="suggestedBy"
+          placeholder="Suggéré par"
+          class="border p-2 rounded"
+        />
+
+        <select id="status" class="border p-2 rounded">
+
+          <option value="Want to read">Want to read</option>
+
+          <option value="Currently reading">
+            Currently reading
+          </option>
+
+          <option value="Read">Read</option>
+
+          <option value="Re-read">Re-read</option>
+
+          <option value="DNF">DNF</option>
+
+          <option value="Returned unread">
+            Returned unread
+          </option>
+
+        </select>
+
+        <select id="format" class="border p-2 rounded">
+
+          <option value="Print">Print</option>
+
+          <option value="PDF">PDF</option>
+
+          <option value="Ebook">Ebook</option>
+
+          <option value="AudioBook">AudioBook</option>
+
+        </select>
+
+      </div>
+
+      <button
+        class="bg-blue-500 text-white px-4 py-2 rounded mt-5"
+      >
+        Ajouter Livre
+      </button>
+
+    </form>
+
+    <!-- BOOKS -->
+    <div id="booksContainer" class="grid gap-4"></div>
+
+  </div>
+
+<script>
+const API_URL = "http://localhost:5000/books";
+
+const form = document.getElementById("bookForm");
+const booksContainer = document.getElementById("booksContainer");
+
+async function loadBooks() {
+  const response = await fetch(API_URL);
+  const books = await response.json();
+
+  booksContainer.innerHTML = "";
+
+  books.forEach((book) => {
+    const percentage = Math.round(
+      (book.pagesRead / book.pages) * 100
+    );
+
+    booksContainer.innerHTML += `
+      <div class="bg-white p-5 rounded shadow">
+
+        <div class="flex justify-between">
+
+          <div>
+            <h2 class="text-2xl font-bold">
+              ${book.title}
+            </h2>
+
+            <p>Auteur : ${book.author}</p>
+            <p>Status : ${book.status}</p>
+            <p>Format : ${book.format}</p>
+            <p>Prix : ${book.price} DH</p>
+            <p>Suggéré par : ${book.suggestedBy || "Non spécifié"}</p>
+            <p>Pages : ${book.pagesRead}/${book.pages}</p>
+
+            <div class="flex items-center gap-2 mt-3">
+              <input
+                type="checkbox"
+                ${book.finished ? "checked" : ""}
+                onchange="toggleFinished('${book._id}', this.checked)"
+                class="w-5 h-5"
+              />
+
+              <span>Livre terminé</span>
+            </div>
+
+            <p class="mt-2 font-bold ${
+              book.finished ? "text-green-600" : "text-orange-500"
+            }">
+              ${book.finished ? "Terminé" : "En cours"}
+            </p>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <button
+              onclick="updatePages('${book._id}', ${book.pages})"
+              class="bg-yellow-500 text-white px-4 py-2 rounded"
+            >
+              Update
+            </button>
+
+            <button
+              onclick="deleteBook('${book._id}')"
+              class="bg-red-500 text-white px-4 py-2 rounded"
+            >
+              Delete
+            </button>
+          </div>
+
+        </div>
+
+        <div class="w-full bg-gray-300 rounded h-4 mt-4">
+          <div
+            class="bg-green-500 h-4 rounded"
+            style="width:${percentage}%"
+          ></div>
+        </div>
+
+        <p class="mt-2">
+          ${percentage}% lu
+        </p>
+
+      </div>
+    `;
+  });
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const pages = Number(document.getElementById("pages").value);
+  const pagesRead = Number(document.getElementById("pagesRead").value);
+
+  if (pagesRead > pages) {
+    alert("Les pages lues ne peuvent pas dépasser le total.");
+    return;
+  }
+
+  const book = {
+    title: document.getElementById("title").value,
+    author: document.getElementById("author").value,
+    pages,
+    pagesRead,
+    price: Number(document.getElementById("price").value),
+    suggestedBy: document.getElementById("suggestedBy").value,
+    status: pagesRead >= pages ? "Read" : document.getElementById("status").value,
+    format: document.getElementById("format").value,
+  };
+
+  await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(book)
+  });
+
+  form.reset();
+  loadBooks();
+});
+
+async function toggleFinished(id, checked) {
+  await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      finished: checked
+    })
+  });
+
+  loadBooks();
+}
+
+async function updatePages(id, totalPages) {
+  const newPagesRead = Number(
+    prompt("Nouveau nombre de pages lues :")
+  );
+
+  if (newPagesRead > totalPages) {
+    alert("Pages lues ne peut pas dépasser le total");
+    return;
+  }
+
+  await fetch(`${API_URL}/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      pagesRead: newPagesRead
+    })
+  });
+
+  loadBooks();
+}
+
+async function deleteBook(id) {
+  await fetch(`${API_URL}/${id}`, {
+    method: "DELETE"
+  });
+
+  loadBooks();
+}
+
+loadBooks();
+</script>
+
+</body>
+</html>
